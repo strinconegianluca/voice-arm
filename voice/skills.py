@@ -49,6 +49,24 @@ TOOLS = [
     },
     {
         "type": "function",
+        "name": "prepare_point",
+        "description": (
+            "Look at the latest phone frame and propose pointing the tool at one named object. "
+            "Does not move the arm. Use this when the user names a physical object instead of a pose."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "object": {
+                    "type": "string",
+                    "description": "The object to point at, in Italian, for example bottiglia or tazza.",
+                },
+            },
+            "required": ["object"],
+        },
+    },
+    {
+        "type": "function",
         "name": "execute_pending",
         "description": (
             "Move the arm using the skill prepared earlier. "
@@ -107,6 +125,8 @@ class SkillGate:
     async def call(self, name: str, arguments: dict) -> dict:
         if name == "prepare_skill":
             return self.prepare(arguments.get("skill", ""), arguments.get("target"))
+        if name == "prepare_point":
+            return await self.prepare_from_camera(str(arguments.get("object") or ""))
         if name == "execute_pending":
             return await self.execute()
         if name == "cancel_pending":
@@ -136,6 +156,33 @@ class SkillGate:
             "report": f"In attesa di conferma vocale per {skill}{where}. Chiedi 'Confermi?' e non muovere.",
         }
 
+    def prepare_point_at(self, label: str, xyz: tuple[float, float, float]) -> dict:
+        self.pending = {"skill": "point_at", "target": label, "xyz": tuple(xyz)}
+        self.confirmed = False
+        return {
+            "ok": True,
+            "pending": True,
+            "moved": False,
+            "report": f"In attesa di conferma per puntare verso {label}. Chiedi 'Confermi?' e non muovere.",
+        }
+
+    async def prepare_from_camera(self, label: str) -> dict:
+        label = " ".join(label.strip().lower().split())
+        if not label:
+            return {
+                "ok": False,
+                "needs_clarification": True,
+                "report": "Quale oggetto devo indicare? Chiedilo, senza muovere il braccio.",
+            }
+        from vision.look import look
+
+        sight = await look(label, self.arm.tcp)
+        if not sight.ok or sight.xyz is None:
+            return {"ok": False, "moved": False, "report": sight.report}
+        prepared = self.prepare_point_at(label, sight.xyz)
+        prepared["report"] = sight.report
+        return prepared
+
     async def execute(self) -> dict:
         if not self.pending:
             return {"ok": False, "moved": False, "report": "Nessuna skill in attesa."}
@@ -147,12 +194,15 @@ class SkillGate:
             }
         skill = self.pending["skill"]
         target = self.pending.get("target")
+        xyz = self.pending.get("xyz")
         self.pending = None
         self.confirmed = False
         if skill == "go_to_pose":
             result = await self.arm.go_to_pose(target)
         elif skill == "indicate":
             result = await self.arm.indicate(target)
+        elif skill == "point_at":
+            result = await self.arm.point_at(xyz, target or "oggetto")
         elif skill == "lift_tray":
             result = await self.arm.lift_tray()
         elif skill == "put_down":

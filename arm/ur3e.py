@@ -293,6 +293,15 @@ class UR3e:
             return self._reject(f"Non posso indicare '{target}'.")
         return await self._movej(HOVER_POSES[target], f"movej indico {target}", target)
 
+    async def point_at(self, xyz: tuple[float, float, float], label: str = "oggetto") -> dict:
+        goal = (float(xyz[0]), float(xyz[1]), float(xyz[2]))
+        if not within_reach(goal):
+            return self._reject("Quel punto è fuori dallo sbraccio di 500 mm del UR3e.")
+        solution = inverse(goal, [self.q] + _SEEDS)
+        if solution is None:
+            return self._reject("Il UR3e non raggiunge quel punto con il polso verso il basso.")
+        return await self._movej(solution, f"movej punto verso {label}", "punto")
+
     async def lift_tray(self) -> dict:
         if self.holding_tray:
             return self._reject("Il vassoio è già in mano.")

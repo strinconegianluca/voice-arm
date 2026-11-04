@@ -30,6 +30,12 @@ Microfono, con Grok Voice:
 
 La barra spaziatrice ferma il braccio. `Ctrl+C` chiude.
 
+## Telefono
+
+All'avvio il programma stampa un indirizzo, per esempio `https://192.168.1.20:8765`. Aprilo dal telefono, sulla stessa rete Wi-Fi. Accetta il certificato: senza quello il browser non accende la fotocamera dal vivo. Se resta bloccata, la pagina ha un pulsante per scattare una foto.
+
+Tieni il telefono sopra il tavolo, con il lato alto dello schermo verso il fondo, lontano dalla base del braccio. Poi, da testo o dal microfono: `punta verso la bottiglia`. Il programma manda l'ultimo fotogramma a Grok, che segna la pinza e l'oggetto. Lo spostamento nel video, sommato alla posizione vera del polso, diventa il bersaglio. Il braccio non si muove finché non confermi.
+
 ## URSim o braccio vero
 
 In `.env`, `UR3E_IP` vuoto lascia il simulatore interno. Per URSim o per il controller del UR3e metti il suo IP. URSim in locale è `127.0.0.1`, con PolyScope in Remote Control. Lo stop software è `stopj`. L'arresto di sicurezza resta il pulsante del teach pendant.

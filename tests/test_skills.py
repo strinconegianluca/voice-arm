@@ -91,6 +91,8 @@ def test_typed_italian_commands_confirm_before_moving():
     assert parse_command("ferma")["kind"] == "stop"
     assert parse_command("vai a destra")["skill"] == "go_to_pose"
     assert parse_command("spingi")["kind"] == "clarify"
+    assert parse_command("indica il centro")["skill"] == "indicate"
+    assert parse_command("punta verso la bottiglia") == {"kind": "point", "object": "bottiglia"}
 
 
 def test_urscript_matches_the_controller_protocol():

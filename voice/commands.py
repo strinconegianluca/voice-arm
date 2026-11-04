@@ -14,6 +14,11 @@ _INDICATE = re.compile(r"indic|mostra|punta", re.IGNORECASE)
 _PUSH = re.compile(r"sping", re.IGNORECASE)
 _GOTO = re.compile(r"\b(?:vai|va|porta|muovi|sposta)\b|in posa|posizione", re.IGNORECASE)
 _SOMEWHERE = re.compile(r"da qualche parte|non so dove|dove vuoi", re.IGNORECASE)
+_LEAD = re.compile(
+    r"^(?:punta|indica\w*|mostra|verso|alla|allo|al|la|il|lo|un|una|di|del|della)\s+|^(?:all'|l')",
+    re.IGNORECASE,
+)
+_NAMED = {"sinistra", "destra", "centro", "vassoio", "home", "casa", "riposo"}
 
 _ASK = {
     "lift_tray": "Confermi di sollevare il vassoio?",
@@ -34,6 +39,17 @@ def _target(text: str) -> str | None:
     return word
 
 
+def _object_phrase(text: str) -> str | None:
+    phrase = text.strip().lower()
+    previous = None
+    while phrase and phrase != previous:
+        previous = phrase
+        phrase = _LEAD.sub("", phrase).strip()
+    if not phrase or phrase in _NAMED or _TARGET_RE.search(phrase):
+        return None
+    return phrase
+
+
 def parse_command(text: str) -> dict:
     """Map one Italian sentence to a skill, a confirmation, a stop, or a question."""
     if is_stop(text):
@@ -51,9 +67,12 @@ def parse_command(text: str) -> dict:
         return {"kind": "prepare", "skill": "push", "target": target}
     if _INDICATE.search(text):
         target = _target(text)
-        if target in {None, "home"}:
-            return {"kind": "clarify", "say": "Cosa indico: sinistra, destra, centro o vassoio?"}
-        return {"kind": "prepare", "skill": "indicate", "target": target}
+        if target not in {None, "home"}:
+            return {"kind": "prepare", "skill": "indicate", "target": target}
+        phrase = _object_phrase(text)
+        if phrase:
+            return {"kind": "point", "object": phrase}
+        return {"kind": "clarify", "say": "Cosa indico: un oggetto nel video, oppure sinistra, destra, centro o vassoio?"}
     if _GOTO.search(text):
         target = _target(text)
         if target is None:
@@ -65,11 +84,11 @@ def parse_command(text: str) -> dict:
         return {"kind": "cancel"}
     return {
         "kind": "clarify",
-        "say": "Non ho capito. Puoi dire: solleva il vassoio, vai a destra, indica il centro, spingi verso sinistra, appoggia, ferma.",
+        "say": "Non ho capito. Puoi dire: solleva il vassoio, vai a destra, indica il centro, punta verso la bottiglia, spingi verso sinistra, appoggia, ferma.",
     }
 
 
-async def apply_command(gate: SkillGate, text: str) -> str:
+async def apply_command(gate: SkillGate, text: str, locate=None) -> str:
     parsed = parse_command(text)
     kind = parsed["kind"]
     if kind == "stop":
@@ -80,6 +99,16 @@ async def apply_command(gate: SkillGate, text: str) -> str:
         return "Annullato. Il braccio non si muove."
     if kind == "clarify":
         return parsed["say"]
+    if kind == "point":
+        if locate is None:
+            from vision.look import look
+
+            locate = look
+        sight = await locate(parsed["object"], gate.arm.tcp)
+        if not sight.ok or sight.xyz is None:
+            return sight.report
+        gate.prepare_point_at(parsed["object"], sight.xyz)
+        return sight.report
     if kind == "confirm":
         if gate.on_user_text(text) != "confirm":
             return "Non c'è un movimento da confermare."
