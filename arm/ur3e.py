@@ -430,7 +430,7 @@ def make_arm() -> UR3e:
     ip = os.environ.get("UR3E_IP", "").strip() or None
     arm = UR3e(ip=ip)
     if ip:
-        print(f"UR3e su {ip}:30001. Movimenti lenti. Lo stop vocale invia stopj; l'e-stop del pendant resta quello di sicurezza.")
+        print(f"UR3e su {ip}:30001. Velocità sotto il 20% del massimo. Lo stop vocale invia stopj; l'e-stop del pendant resta quello di sicurezza.")
     else:
         print("UR3e simulato, sbraccio 500 mm. Imposta UR3E_IP nel .env per il controller vero.")
     return arm

@@ -2,7 +2,16 @@ import asyncio
 import math
 
 from arm.ur3e import REACH_M, UR3e, forward, within_reach
-from arm.urscript import movej_script, stopj_script
+from arm.urscript import (
+    JOINT_VELOCITY,
+    MAX_JOINT_SPEED,
+    MAX_TCP_SPEED,
+    SPEED_LIMIT,
+    TCP_VELOCITY,
+    movej_script,
+    movel_script,
+    stopj_script,
+)
 from voice.commands import apply_command, parse_command
 from voice.skills import SkillGate, is_stop
 
@@ -105,3 +114,7 @@ def test_urscript_matches_the_controller_protocol():
     assert "movej([" in script
     assert script.endswith("\n")
     assert "stopj(2.0)" in stopj_script()
+    assert JOINT_VELOCITY <= SPEED_LIMIT * MAX_JOINT_SPEED
+    assert TCP_VELOCITY <= SPEED_LIMIT * MAX_TCP_SPEED
+    assert f"v={JOINT_VELOCITY:.3f}" in movej_script([0.0] * 6)
+    assert f"v={TCP_VELOCITY:.3f}" in movel_script((0.2, 0.0, 0.2, 0.0, 3.14, 0.0))

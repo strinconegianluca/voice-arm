@@ -38,4 +38,6 @@ Tieni il telefono sopra il tavolo, con il lato alto dello schermo verso il fondo
 
 ## URSim o braccio vero
 
-In `.env`, `UR3E_IP` vuoto lascia il simulatore interno. Per URSim o per il controller del UR3e metti il suo IP. URSim in locale è `127.0.0.1`, con PolyScope in Remote Control. Lo stop software è `stopj`. L'arresto di sicurezza resta il pulsante del teach pendant.
+In `.env`, `UR3E_IP` vuoto lascia il simulatore interno. Per URSim o per il controller del UR3e metti il suo IP. URSim in locale è `127.0.0.1`, con PolyScope in Remote Control.
+
+Il programma non manda un movimento senza conferma. `ferma` e la barra spaziatrice inviano `stopj`. Un punto oltre i 500 mm viene rifiutato. La velocità inviata al controller resta sotto il 20% dei massimi del manuale UR3e (180 °/s sui primi tre giunti, 360 °/s sui polsi, circa 3 m/s all’utensile): ora è circa il 13% sui giunti e il 3% sull’utensile. L’arresto di sicurezza resta il pulsante del teach pendant.
