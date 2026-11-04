@@ -1,0 +1,91 @@
+"""Italian phrases typed in place of speech. Same confirmation gate as the voice agent."""
+
+from __future__ import annotations
+
+import re
+
+from voice.skills import SkillGate, is_confirm, is_reject, is_stop
+
+_TARGET = r"(sinistra|destra|centro|vassoio|home|casa|riposo)"
+_TARGET_RE = re.compile(_TARGET, re.IGNORECASE)
+_LIFT = re.compile(r"sollev|alz|prendi il vassoio|raccogli", re.IGNORECASE)
+_PUT = re.compile(r"appogg|posa\b|metti(?:lo)? (?:giù|giu)|rilasci", re.IGNORECASE)
+_INDICATE = re.compile(r"indic|mostra|punta", re.IGNORECASE)
+_PUSH = re.compile(r"sping", re.IGNORECASE)
+_GOTO = re.compile(r"\b(?:vai|va|porta|muovi|sposta)\b|in posa|posizione", re.IGNORECASE)
+_SOMEWHERE = re.compile(r"da qualche parte|non so dove|dove vuoi", re.IGNORECASE)
+
+_ASK = {
+    "lift_tray": "Confermi di sollevare il vassoio?",
+    "put_down": "Confermi di appoggiare il vassoio?",
+    "go_to_pose": "Confermi di andare in posa {target}?",
+    "indicate": "Confermi di indicare {target}?",
+    "push": "Confermi di spingere verso {target}?",
+}
+
+
+def _target(text: str) -> str | None:
+    match = _TARGET_RE.search(text)
+    if not match:
+        return None
+    word = match.group(1).lower()
+    if word in {"casa", "riposo"}:
+        return "home"
+    return word
+
+
+def parse_command(text: str) -> dict:
+    """Map one Italian sentence to a skill, a confirmation, a stop, or a question."""
+    if is_stop(text):
+        return {"kind": "stop"}
+    if _SOMEWHERE.search(text):
+        return {"kind": "clarify", "say": "Dove lo metto: sinistra, destra, centro o sul vassoio?"}
+    if _LIFT.search(text):
+        return {"kind": "prepare", "skill": "lift_tray", "target": None}
+    if _PUT.search(text):
+        return {"kind": "prepare", "skill": "put_down", "target": None}
+    if _PUSH.search(text):
+        target = _target(text)
+        if target in {None, "home"}:
+            return {"kind": "clarify", "say": "Verso dove spingo: sinistra, destra o centro?"}
+        return {"kind": "prepare", "skill": "push", "target": target}
+    if _INDICATE.search(text):
+        target = _target(text)
+        if target in {None, "home"}:
+            return {"kind": "clarify", "say": "Cosa indico: sinistra, destra, centro o vassoio?"}
+        return {"kind": "prepare", "skill": "indicate", "target": target}
+    if _GOTO.search(text):
+        target = _target(text)
+        if target is None:
+            return {"kind": "clarify", "say": "In quale posa vado: home, sinistra, destra, centro o vassoio?"}
+        return {"kind": "prepare", "skill": "go_to_pose", "target": target}
+    if is_confirm(text):
+        return {"kind": "confirm"}
+    if is_reject(text):
+        return {"kind": "cancel"}
+    return {
+        "kind": "clarify",
+        "say": "Non ho capito. Puoi dire: solleva il vassoio, vai a destra, indica il centro, spingi verso sinistra, appoggia, ferma.",
+    }
+
+
+async def apply_command(gate: SkillGate, text: str) -> str:
+    parsed = parse_command(text)
+    kind = parsed["kind"]
+    if kind == "stop":
+        gate.on_user_text(text)
+        return "Braccio fermo."
+    if kind == "cancel":
+        gate.cancel()
+        return "Annullato. Il braccio non si muove."
+    if kind == "clarify":
+        return parsed["say"]
+    if kind == "confirm":
+        if gate.on_user_text(text) != "confirm":
+            return "Non c'è un movimento da confermare."
+        result = await gate.execute()
+        return result.get("report", "Fatto.")
+    prepared = gate.prepare(parsed["skill"], parsed.get("target"))
+    if not prepared.get("ok"):
+        return prepared.get("report", "Non posso farlo.")
+    return _ASK[parsed["skill"]].format(target=parsed.get("target") or "")
