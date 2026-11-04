@@ -12,7 +12,7 @@ def test_relative_aim_uses_the_arm_and_the_object():
     center = image_to_table(0.5, 0.5)
     assert math.dist(center, (0.30, 0.0)) < 0.001
 
-    # Object is to the right in the picture, gripper is in the middle.
+    # Object is to the right in the picture, the arm is in the middle.
     # Right of the picture is +Y, so the tool moves left of its real position.
     xyz = aim_from_pixels((0.25, -0.05), (0.5, 0.5), (0.75, 0.5))
     assert abs(xyz[0] - 0.25) < 0.001
@@ -39,7 +39,7 @@ def test_pointing_waits_for_confirmation():
     assert math.dist(forward(arm.q)[1], before) < 1e-9
 
     done = asyncio.run(apply_command(gate, "sì", locate=locate))
-    assert "punto verso bottiglia" in done
+    assert "verso bottiglia" in done
     assert math.dist(arm.tcp, (0.30, 0.05, 0.20)) < 0.01
 
 

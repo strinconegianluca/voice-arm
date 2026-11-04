@@ -93,6 +93,11 @@ def test_typed_italian_commands_confirm_before_moving():
     assert parse_command("spingi")["kind"] == "clarify"
     assert parse_command("indica il centro")["skill"] == "indicate"
     assert parse_command("punta verso la bottiglia") == {"kind": "point", "object": "bottiglia"}
+    assert parse_command("prendi la bottiglia") == {"kind": "point", "object": "bottiglia"}
+    assert parse_command("solleva la tazza") == {"kind": "point", "object": "tazza"}
+    assert parse_command("vai verso la bottiglia") == {"kind": "point", "object": "bottiglia"}
+    assert parse_command("solleva il vassoio")["skill"] == "lift_tray"
+    assert parse_command("va bene")["kind"] == "confirm"
 
 
 def test_urscript_matches_the_controller_protocol():

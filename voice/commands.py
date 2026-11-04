@@ -8,14 +8,22 @@ from voice.skills import SkillGate, is_confirm, is_reject, is_stop
 
 _TARGET = r"(sinistra|destra|centro|vassoio|home|casa|riposo)"
 _TARGET_RE = re.compile(_TARGET, re.IGNORECASE)
-_LIFT = re.compile(r"sollev|alz|prendi il vassoio|raccogli", re.IGNORECASE)
-_PUT = re.compile(r"appogg|posa\b|metti(?:lo)? (?:giù|giu)|rilasci", re.IGNORECASE)
+_PICK = re.compile(r"sollev|alz|prend|raccogli", re.IGNORECASE)
+_PICK_LEAD = re.compile(
+    r"^(?:sollev\w*|alz\w*|prend\w*|raccogli\w*|il|lo|la|i|gli|le|un|una|di|del|della|verso|a)\s+|^(?:l')",
+    re.IGNORECASE,
+)
+_PUT = re.compile(r"appogg|posa\b|metti(?:lo)? (?:giù|giu)|abbass", re.IGNORECASE)
+_BARE_CONFIRM = re.compile(
+    r"^(?:s[iì]|ok|okay|conferma|confermo|d'accordo|fallo|procedi|va bene)[\s.!?]*$",
+    re.IGNORECASE,
+)
 _INDICATE = re.compile(r"indic|mostra|punta", re.IGNORECASE)
 _PUSH = re.compile(r"sping", re.IGNORECASE)
 _GOTO = re.compile(r"\b(?:vai|va|porta|muovi|sposta)\b|in posa|posizione", re.IGNORECASE)
 _SOMEWHERE = re.compile(r"da qualche parte|non so dove|dove vuoi", re.IGNORECASE)
 _LEAD = re.compile(
-    r"^(?:punta|indica\w*|mostra|verso|alla|allo|al|la|il|lo|un|una|di|del|della)\s+|^(?:all'|l')",
+    r"^(?:punta|indica\w*|mostra|vai|va|porta|muovi|sposta|verso|alla|allo|al|la|il|lo|un|una|di|del|della)\s+|^(?:all'|l')",
     re.IGNORECASE,
 )
 _NAMED = {"sinistra", "destra", "centro", "vassoio", "home", "casa", "riposo"}
@@ -39,6 +47,15 @@ def _target(text: str) -> str | None:
     return word
 
 
+def _payload(text: str) -> str:
+    phrase = text.strip().lower()
+    previous = None
+    while phrase and phrase != previous:
+        previous = phrase
+        phrase = _PICK_LEAD.sub("", phrase).strip(" .!?")
+    return phrase
+
+
 def _object_phrase(text: str) -> str | None:
     phrase = text.strip().lower()
     previous = None
@@ -54,10 +71,17 @@ def parse_command(text: str) -> dict:
     """Map one Italian sentence to a skill, a confirmation, a stop, or a question."""
     if is_stop(text):
         return {"kind": "stop"}
+    if _BARE_CONFIRM.match(text.strip()):
+        return {"kind": "confirm"}
     if _SOMEWHERE.search(text):
         return {"kind": "clarify", "say": "Dove lo metto: sinistra, destra, centro o sul vassoio?"}
-    if _LIFT.search(text):
-        return {"kind": "prepare", "skill": "lift_tray", "target": None}
+    if _PICK.search(text):
+        payload = _payload(text)
+        if not payload or payload == "vassoio":
+            return {"kind": "prepare", "skill": "lift_tray", "target": None}
+        if payload in _NAMED or _TARGET_RE.search(payload):
+            return {"kind": "clarify", "say": "Verso quale oggetto mi sposto?"}
+        return {"kind": "point", "object": payload}
     if _PUT.search(text):
         return {"kind": "prepare", "skill": "put_down", "target": None}
     if _PUSH.search(text):
@@ -75,16 +99,19 @@ def parse_command(text: str) -> dict:
         return {"kind": "clarify", "say": "Cosa indico: un oggetto nel video, oppure sinistra, destra, centro o vassoio?"}
     if _GOTO.search(text):
         target = _target(text)
-        if target is None:
-            return {"kind": "clarify", "say": "In quale posa vado: home, sinistra, destra, centro o vassoio?"}
-        return {"kind": "prepare", "skill": "go_to_pose", "target": target}
+        if target is not None:
+            return {"kind": "prepare", "skill": "go_to_pose", "target": target}
+        phrase = _object_phrase(text)
+        if phrase:
+            return {"kind": "point", "object": phrase}
+        return {"kind": "clarify", "say": "In quale posa vado: home, sinistra, destra, centro o vassoio?"}
     if is_confirm(text):
         return {"kind": "confirm"}
     if is_reject(text):
         return {"kind": "cancel"}
     return {
         "kind": "clarify",
-        "say": "Non ho capito. Puoi dire: solleva il vassoio, vai a destra, indica il centro, punta verso la bottiglia, spingi verso sinistra, appoggia, ferma.",
+        "say": "Non ho capito. Puoi dire: vai verso la bottiglia, vai a destra, indica il centro, solleva il vassoio, spingi verso sinistra, appoggia, ferma.",
     }
 
 

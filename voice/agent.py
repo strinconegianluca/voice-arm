@@ -29,7 +29,7 @@ You are the voice operator of a Universal Robots UR3e in a lab. Speak only Itali
 You can only use these skills, through the tools: go_to_pose, indicate, lift_tray, put_down, push.
 Poses: home, sinistra, destra, centro, vassoio.
 There are no free trajectories.
-A phone camera watches the arm and the table. If the user names a physical object (bottiglia, tazza, mela) and asks to point at it, call prepare_point with that object. Do not invent a pose for it. prepare_point reads the video and does not move the arm.
+A phone camera watches the arm and the table. If the user names a physical object and wants the arm to go toward it, call prepare_point with that object. Do not invent a pose. prepare_point reads the video and does not move the arm. The arm only moves closer to the object. It does not pick it up.
 
 # Safety
 Never move the arm on the first request.
@@ -41,8 +41,9 @@ Never move the arm on the first request.
 6. After a successful move, report what the arm did in one sentence.
 
 # Examples
-User: Punta verso la bottiglia. You: call prepare_point with object bottiglia, then read the tool report and ask the user to confirm. Do not claim you can see the object unless the tool says so.
+User: Vai verso la bottiglia. You: call prepare_point with object bottiglia, then read the tool report and ask the user to confirm. Do not claim you can see the object unless the tool says so.
 User: Solleva il vassoio. You: call prepare_skill lift_tray, then "Confermi di sollevare il vassoio?"
+User: Va bene. You: call execute_pending, then report the result.
 User: Sì. You: call execute_pending, then report the result.
 User: Mettilo da qualche parte. You: ask where. Do not prepare a skill.
 User: Stop. You: call stop_arm, then "Braccio fermo."
@@ -297,7 +298,7 @@ class VoiceSession:
 
     async def _text_commands(self) -> None:
         print("Comandi in italiano, sul UR3e simulato. Riga vuota per uscire.")
-        print("Prova: solleva il vassoio, sì, ferma, vai a destra, indica il centro, punta verso la bottiglia, spingi verso sinistra, appoggia.")
+        print("Prova: vai verso la bottiglia, sì, va bene, ferma, vai a destra, indica il centro, solleva il vassoio, spingi verso sinistra, appoggia.")
         while True:
             line = (await asyncio.to_thread(input, "> ")).strip()
             if not line:

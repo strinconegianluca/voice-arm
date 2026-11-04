@@ -51,7 +51,7 @@ TOOLS = [
         "type": "function",
         "name": "prepare_point",
         "description": (
-            "Look at the latest phone frame and propose pointing the tool at one named object. "
+            "Look at the latest phone frame and propose moving the arm toward one named object. "
             "Does not move the arm. Use this when the user names a physical object instead of a pose."
         ),
         "parameters": {
@@ -163,7 +163,7 @@ class SkillGate:
             "ok": True,
             "pending": True,
             "moved": False,
-            "report": f"In attesa di conferma per puntare verso {label}. Chiedi 'Confermi?' e non muovere.",
+            "report": f"In attesa di conferma per andare verso {label}. Chiedi 'Confermi?' e non muovere.",
         }
 
     async def prepare_from_camera(self, label: str) -> dict:
@@ -172,7 +172,7 @@ class SkillGate:
             return {
                 "ok": False,
                 "needs_clarification": True,
-                "report": "Quale oggetto devo indicare? Chiedilo, senza muovere il braccio.",
+                "report": "Quale oggetto? Chiedilo, senza muovere il braccio.",
             }
         from vision.look import look
 

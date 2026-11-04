@@ -300,11 +300,11 @@ class UR3e:
         solution = inverse(goal, [self.q] + _SEEDS)
         if solution is None:
             return self._reject("Il UR3e non raggiunge quel punto con il polso verso il basso.")
-        return await self._movej(solution, f"movej punto verso {label}", "punto")
+        return await self._movej(solution, f"movej verso {label}", "punto")
 
     async def lift_tray(self) -> dict:
         if self.holding_tray:
-            return self._reject("Il vassoio è già in mano.")
+            return self._reject("Il vassoio è già sollevato.")
         approach = await self._movej(JOINT_POSES["vassoio"], "movej sul vassoio", "vassoio")
         if not approach.get("ok"):
             return approach
@@ -317,7 +317,7 @@ class UR3e:
 
     async def put_down(self) -> dict:
         if not self.holding_tray:
-            return self._reject("Non ho un vassoio in mano.")
+            return self._reject("Il vassoio non è sollevato.")
         placed = await self._movel((0.0, 0.0, -LIFT_M), "movel appoggio il vassoio")
         if placed.get("ok"):
             self.holding_tray = False

@@ -11,10 +11,10 @@ from vision.aim import Sight, aim_from_pixels, describe_aim
 from vision.frames import camera_url, latest
 
 _PROMPT = """You see one photo from a phone above a table. A robot arm may be in the picture.
-Find the robot tool tip (the flange or gripper at the end of the arm) and the object named below.
+Find the end of the arm and the object named below. The arm only has to move toward that object.
 Reply with JSON only, no markdown. Coordinates are fractions of the image, origin at the top-left, each axis from 0 to 1.
-{"object_visible": true, "gripper": [0.40, 0.55], "object": [0.70, 0.48]}
-Use null for gripper if the tool tip is not visible. Set object_visible to false if the named object is not visible.
+{"object_visible": true, "tool": [0.40, 0.55], "object": [0.70, 0.48]}
+Use null for tool if the end of the arm is not visible. Set object_visible to false if the named object is not visible.
 Object name: {label}
 """
 
@@ -100,11 +100,11 @@ async def look(label: str, tcp: tuple[float, float, float]) -> Sight:
     object_uv = _unit(found.get("object"))
     if object_uv is None:
         return Sight(False, f"Ho visto il video ma non la posizione di {label}.")
-    gripper_uv = _unit(found.get("gripper"))
-    xyz = aim_from_pixels(tcp[:2], gripper_uv, object_uv)
+    tool_uv = _unit(found.get("tool"))
+    xyz = aim_from_pixels(tcp[:2], tool_uv, object_uv)
     shift = abs(xyz[0] - tcp[0]) + abs(xyz[1] - tcp[1])
     if shift < 0.02:
-        return Sight(False, f"La pinza è già su {label}.")
+        return Sight(False, f"Il braccio è già su {label}.")
     if not within_reach(xyz):
         return Sight(False, "L'oggetto è fuori dallo sbraccio di 500 mm del UR3e.")
-    return Sight(True, describe_aim(label, xyz, saw_gripper=gripper_uv is not None), xyz)
+    return Sight(True, describe_aim(label, xyz, saw_tool=tool_uv is not None), xyz)
